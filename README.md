@@ -27,20 +27,20 @@ The compose file will create the following named volumes:
 Build the image locally:
 
 ```console
-docker build -t slurm-docker-cluster:21.08.6 .
+docker build -t slurm-docker-cluster:23.02.5.1 .
 ```
 
 Build a different version of Slurm using Docker build args and the Slurm Git
 tag:
 
 ```console
-docker build --build-arg SLURM_TAG="slurm-19-05-2-1" -t slurm-docker-cluster:19.05.2 .
+docker build --build-arg SLURM_TAG="slurm-23-02-5-1" -t slurm-docker-cluster:23.02.5.1 .
 ```
 
 Or equivalently using `docker-compose`:
 
 ```console
-SLURM_TAG=slurm-19-05-2-1 IMAGE_TAG=19.05.2 docker-compose build
+SLURM_TAG=slurm-23-02-5-1 IMAGE_TAG=23.02.5.1 docker-compose build
 ```
 
 
@@ -49,7 +49,7 @@ SLURM_TAG=slurm-19-05-2-1 IMAGE_TAG=19.05.2 docker-compose build
 Run `docker-compose` to instantiate the cluster:
 
 ```console
-IMAGE_TAG=19.05.2 docker-compose up -d
+docker-compose up -d
 ```
 
 ## Register the Cluster with SlurmDBD
@@ -118,6 +118,10 @@ docker volume rm slurm-docker-cluster_etc_munge slurm-docker-cluster_etc_slurm s
 
 ## Slurm Rest Header
 ```
-X-SLURM-USER-NAME
-X-SLURM-USER-TOKEN
+X-SLURM-USER-NAME=[username]
+X-SLURM-USER-TOKEN=[JWT TOKEN]
+```
+```
+sconsole token [username]
+SLURM_JWT=[JWT TOKEN]
 ```
