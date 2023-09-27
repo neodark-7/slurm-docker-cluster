@@ -35,12 +35,17 @@ then
     done
     echo "-- slurmdbd is now active ..."
 
+    echo "---> Starting the Slurm REST Daemon (slurmrestd) ..."
+    nohup gosu slurm slurmrestd -f /etc/slurm/slurmrestd.conf -vvv ${SLURMRESTD_HOST}:${SLURMRESTD_PORT} > /var/log/slurm/slurmrestd.log &
+#    nohup gosu slurm slurmrestd -vvvv -a rest_auth/jwt ${SLURMRESTD_HOST}:${SLURMRESTD_PORT}> /var/log/slurm/slurmrestd.log &
+
     echo "---> Starting the Slurm Controller Daemon (slurmctld) ..."
     if /usr/sbin/slurmctld -V | grep -q '17.02' ; then
         exec gosu slurm /usr/sbin/slurmctld -Dvvv
     else
         exec gosu slurm /usr/sbin/slurmctld -i -Dvvv
     fi
+
 fi
 
 if [ "$1" = "slurmd" ]
@@ -59,6 +64,7 @@ then
 
     echo "---> Starting the Slurm Node Daemon (slurmd) ..."
     exec /usr/sbin/slurmd -Dvvv
+
 fi
 
 exec "$@"

@@ -1,18 +1,21 @@
 FROM rockylinux:8
 
-LABEL org.opencontainers.image.source="https://github.com/giovtorres/slurm-docker-cluster" \
-      org.opencontainers.image.title="slurm-docker-cluster" \
-      org.opencontainers.image.description="Slurm Docker cluster on Rocky Linux 8" \
-      org.label-schema.docker.cmd="docker-compose up -d" \
-      maintainer="Giovanni Torres"
+# --with-pam_dir=/usr/lib64/security/
 
-ARG SLURM_TAG=slurm-21-08-6-1
+# LABEL org.opencontainers.image.source="https://github.com/giovtorres/slurm-docker-cluster" \
+#      org.opencontainers.image.title="slurm-docker-cluster" \
+#      org.opencontainers.image.description="Slurm Docker cluster on Rocky Linux 8" \
+#      org.label-schema.docker.cmd="docker-compose up -d" \
+#      maintainer="Giovanni Torres"
+
+ARG SLURM_TAG=slurm-23-02-5-1
 ARG GOSU_VERSION=1.11
 
 RUN set -ex \
     && yum makecache \
     && yum -y update \
     && yum -y install dnf-plugins-core \
+	&& yum -y install epel-release \
     && yum config-manager --set-enabled powertools \
     && yum -y install \
        wget \
@@ -33,8 +36,14 @@ RUN set -ex \
        psmisc \
        bash-completion \
        vim-enhanced \
-       http-parser-devel \
        json-c-devel \
+	   cmake \
+	   jansson-devel \
+	   libjwt-devel \
+	   libyaml \
+	   libtool \
+	   net-tools \
+	   nc \
     && yum clean all \
     && rm -rf /var/cache/yum
 
@@ -53,10 +62,27 @@ RUN set -ex \
     && gosu nobody true
 
 RUN set -x \
+    && git clone https://github.com/nodejs/http-parser.git \
+	&& cd http-parser \
+	&& make \
+	&& make install \
+	&& ldconfig
+
+RUN set -x \
+    && git clone https://github.com/yaml/libyaml.git \
+	&& cd libyaml \
+	&& ./bootstrap \
+	&& ./configure \
+	&& make \
+	&& make install
+
+RUN set -x \
     && git clone -b ${SLURM_TAG} --single-branch --depth=1 https://github.com/SchedMD/slurm.git \
     && pushd slurm \
     && ./configure --enable-debug --prefix=/usr --sysconfdir=/etc/slurm \
         --with-mysql_config=/usr/bin  --libdir=/usr/lib64 \
+		--enable-pam --with-pam_dir=/usr/lib64/security --without-shared-libslurm \
+        --enable-slurmrestd --with-jwt=/usr --with-http-parser=/usr/local --with-yaml=/usr/local \
     && make install \
     && install -D -m644 etc/cgroup.conf.example /etc/slurm/cgroup.conf.example \
     && install -D -m644 etc/slurm.conf.example /etc/slurm/slurm.conf.example \
@@ -85,14 +111,22 @@ RUN set -x \
     && chown -R slurm:slurm /var/*/slurm* \
     && /sbin/create-munge-key
 
+COPY slurmrestd.conf /etc/slurm/slurmrestd.conf
 COPY slurm.conf /etc/slurm/slurm.conf
 COPY slurmdbd.conf /etc/slurm/slurmdbd.conf
 RUN set -x \
+    && chown slurm:slurm /etc/slurm/slurm.conf \
+    && chmod 600 /etc/slurm/slurm.conf \
     && chown slurm:slurm /etc/slurm/slurmdbd.conf \
-    && chmod 600 /etc/slurm/slurmdbd.conf
-
+    && chmod 600 /etc/slurm/slurmdbd.conf \
+    && chown slurm:slurm /etc/slurm/slurmrestd.conf \
+    && chmod 600 /etc/slurm/slurmrestd.conf \
+	&& dd if=/dev/random of=/etc/slurm/jwt_hs256.key bs=32 count=1 \
+	&& chown slurm:slurm /etc/slurm/jwt_hs256.key \
+	&& chmod 600 /etc/slurm/jwt_hs256.key
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["slurmdbd"]

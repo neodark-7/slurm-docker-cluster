@@ -14,11 +14,11 @@ services:
       - var_lib_mysql:/var/lib/mysql
 
   slurmdbd:
-    image: slurm-docker-cluster:${IMAGE_TAG:-21.08}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
     build:
       context: .
       args:
-        SLURM_TAG: ${SLURM_TAG:-slurm-21-08-6-1}
+        SLURM_TAG: ${SLURM_TAG:-slurm-23-02-5-1}
     command: ["slurmdbd"]
     container_name: slurmdbd
     hostname: slurmdbd
@@ -27,27 +27,34 @@ services:
       - etc_slurm:/etc/slurm
       - var_log_slurm:/var/log/slurm
     expose:
-      - "6819"
+      - 6819
     depends_on:
       - mysql
 
   slurmctld:
-    image: slurm-docker-cluster:${IMAGE_TAG:-21.08}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
     command: ["slurmctld"]
     container_name: slurmctld
     hostname: slurmctld
+    environment:
+      LD_LIBRARY_PATH: /usr/local/lib:/usr/lib64
+#      SLURM_JWT: daemon
+      SLURMRESTD_HOST: 0.0.0.0
+      SLURMRESTD_PORT: 6820
     volumes:
       - etc_munge:/etc/munge
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
     expose:
-      - "6817"
+      - 6817
+    ports:
+      - 6820:6820
     depends_on:
       - "slurmdbd"
 
   c1:
-    image: slurm-docker-cluster:${IMAGE_TAG:-21.08}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
     command: ["slurmd"]
     hostname: c1
     container_name: c1
@@ -57,12 +64,12 @@ services:
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
     expose:
-      - "6818"
+      - 6818
     depends_on:
       - "slurmctld"
 
   c2:
-    image: slurm-docker-cluster:${IMAGE_TAG:-21.08}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
     command: ["slurmd"]
     hostname: c2
     container_name: c2
@@ -72,7 +79,7 @@ services:
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
     expose:
-      - "6818"
+      - 6818
     depends_on:
       - "slurmctld"
 
