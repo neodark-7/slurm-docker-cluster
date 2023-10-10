@@ -46,6 +46,7 @@ services:
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
+      - work:/home/admin
     expose:
       - 6817
     ports:
@@ -63,6 +64,7 @@ services:
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
+      - work:/home/admin
     expose:
       - 6818
     depends_on:
@@ -78,8 +80,26 @@ services:
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
+      - work:/home/admin
     expose:
       - 6818
+    depends_on:
+      - "slurmctld"
+
+  slurmjupyter:
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
+    command: ["jupyter"]
+    hostname: slurmjupyter
+    container_name: slurmjupyter
+#    user: admin
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+      - work:/home/admin
+    ports:
+      - 8888:8888
     depends_on:
       - "slurmctld"
 
@@ -89,3 +109,4 @@ volumes:
   slurm_jobdir:
   var_lib_mysql:
   var_log_slurm:
+  work:

@@ -10,6 +10,8 @@ FROM rockylinux:8
 
 ARG SLURM_TAG=slurm-23-02-5-1
 ARG GOSU_VERSION=1.11
+ARG NODE_MAJOR=20
+ARG JUPYTERLAB_VERSION=3.2.9
 
 RUN set -ex \
     && yum makecache \
@@ -28,9 +30,9 @@ RUN set -ex \
        make \
        munge \
        munge-devel \
-       python3-devel \
-       python3-pip \
-       python3 \
+       python3.11-devel \
+       python3.11-pip \
+       python3.11 \
        mariadb-server \
        mariadb-devel \
        psmisc \
@@ -44,10 +46,16 @@ RUN set -ex \
 	   libtool \
 	   net-tools \
 	   nc \
+	   curl \
+	   dirmngr \
+	   ca-certificates \
+	   sudo \
     && yum clean all \
     && rm -rf /var/cache/yum
 
-RUN alternatives --set python /usr/bin/python3
+RUN alternatives --set python /usr/bin/python3.11
+RUN alternatives --set python3 /usr/bin/python3.11
+#RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11
 
 RUN pip3 install Cython nose
 
@@ -60,6 +68,16 @@ RUN set -ex \
     && rm -rf "${GNUPGHOME}" /usr/local/bin/gosu.asc \
     && chmod +x /usr/local/bin/gosu \
     && gosu nobody true
+
+RUN curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+RUN adduser -m -s /usr/bin/bash admin
+RUN echo "admin:admin" | chpasswd 
+RUN usermod -aG wheel admin
+RUN echo "admin     ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN yum install nodejs libffi-devel -y && npm install -g configurable-http-proxy && pip3 install jupyterlab==${JUPYTERLAB_VERSION}
+
+RUN yum install openmpi-devel -y && export CC=/usr/lib64/openmpi/bin/mpicc && pip3 install mpi4py && pip3 install jupyterlab_slurm
 
 RUN set -x \
     && git clone https://github.com/nodejs/http-parser.git \
