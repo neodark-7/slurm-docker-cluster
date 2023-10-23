@@ -1,25 +1,26 @@
-FROM rockylinux:8
+FROM rockylinux:9
 
 # --with-pam_dir=/usr/lib64/security/
 
 # LABEL org.opencontainers.image.source="https://github.com/giovtorres/slurm-docker-cluster" \
 #      org.opencontainers.image.title="slurm-docker-cluster" \
-#      org.opencontainers.image.description="Slurm Docker cluster on Rocky Linux 8" \
+#      org.opencontainers.image.description="Slurm Docker cluster on Rocky Linux 9" \
 #      org.label-schema.docker.cmd="docker-compose up -d" \
 #      maintainer="Giovanni Torres"
 
-ARG SLURM_TAG=slurm-23-02-5-1
+ARG SLURM_TAG=slurm-23-02-6-1
 ARG GOSU_VERSION=1.11
 ARG NODE_MAJOR=20
-ARG JUPYTERLAB_VERSION=3.2.9
+ARG JUPYTERLAB_VERSION=4.0.7
 
 RUN set -ex \
     && yum makecache \
     && yum -y update \
     && yum -y install dnf-plugins-core \
 	&& yum -y install epel-release \
-    && yum config-manager --set-enabled powertools \
-    && yum -y install \
+#    && yum config-manager --set-enabled powertools \
+    && yum config-manager --set-enabled crb \
+    && yum -y install --allowerasing \
        wget \
        bzip2 \
        perl \
@@ -30,11 +31,10 @@ RUN set -ex \
        make \
        munge \
        munge-devel \
-       python3.11-devel \
-       python3.11-pip \
-       python3.11 \
+       munge-libs \
        mariadb-server \
        mariadb-devel \
+       mariadb \
        psmisc \
        bash-completion \
        vim-enhanced \
@@ -50,12 +50,25 @@ RUN set -ex \
 	   dirmngr \
 	   ca-certificates \
 	   sudo \
+#       dbus-devel \
+       libyaml-devel \
+       http-parser-devel \
+    && yum clean all \
+    && rm -rf /var/cache/yum
+RUN yum -y install python3 \
+       python3-devel \
+       python3-pip \
     && yum clean all \
     && rm -rf /var/cache/yum
 
-RUN alternatives --set python /usr/bin/python3.11
-RUN alternatives --set python3 /usr/bin/python3.11
-#RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11
+RUN whereis pip
+RUN whereis pip3
+#RUN alternatives --set python /usr/bin/python3.11
+RUN alternatives --install /usr/bin/python python /usr/bin/python3 100
+#RUN alternatives --set python3 /usr/bin/python3.11
+#RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3 100
+RUN python3 --version
+RUN pip3 --version
 
 RUN pip3 install Cython nose
 
@@ -79,20 +92,7 @@ RUN yum install nodejs libffi-devel -y && npm install -g configurable-http-proxy
 
 RUN yum install openmpi-devel -y && export CC=/usr/lib64/openmpi/bin/mpicc && pip3 install mpi4py && pip3 install jupyterlab_slurm
 
-RUN set -x \
-    && git clone https://github.com/nodejs/http-parser.git \
-	&& cd http-parser \
-	&& make \
-	&& make install \
-	&& ldconfig
-
-RUN set -x \
-    && git clone https://github.com/yaml/libyaml.git \
-	&& cd libyaml \
-	&& ./bootstrap \
-	&& ./configure \
-	&& make \
-	&& make install
+RUN yum -y install diffutils
 
 RUN set -x \
     && git clone -b ${SLURM_TAG} --single-branch --depth=1 https://github.com/SchedMD/slurm.git \
@@ -100,7 +100,8 @@ RUN set -x \
     && ./configure --enable-debug --prefix=/usr --sysconfdir=/etc/slurm \
         --with-mysql_config=/usr/bin  --libdir=/usr/lib64 \
 		--enable-pam --with-pam_dir=/usr/lib64/security --without-shared-libslurm \
-        --enable-slurmrestd --with-jwt=/usr --with-http-parser=/usr/local --with-yaml=/usr/local \
+        --enable-slurmrestd --with-jwt=/usr --with-http-parser=/usr --with-yaml=/usr \
+#        --with-ebpf \
     && make install \
     && install -D -m644 etc/cgroup.conf.example /etc/slurm/cgroup.conf.example \
     && install -D -m644 etc/slurm.conf.example /etc/slurm/slurm.conf.example \
@@ -132,6 +133,8 @@ RUN set -x \
 COPY slurmrestd.conf /etc/slurm/slurmrestd.conf
 COPY slurm.conf /etc/slurm/slurm.conf
 COPY slurmdbd.conf /etc/slurm/slurmdbd.conf
+COPY cgroup.conf /etc/slurm/cgroup.conf
+
 RUN set -x \
     && chown slurm:slurm /etc/slurm/slurm.conf \
     && chmod 600 /etc/slurm/slurm.conf \
@@ -139,6 +142,8 @@ RUN set -x \
     && chmod 600 /etc/slurm/slurmdbd.conf \
     && chown slurm:slurm /etc/slurm/slurmrestd.conf \
     && chmod 600 /etc/slurm/slurmrestd.conf \
+    && chown slurm:slurm /etc/slurm/cgroup.conf \
+    && chmod 600 /etc/slurm/cgroup.conf \
 	&& dd if=/dev/random of=/etc/slurm/jwt_hs256.key bs=32 count=1 \
 	&& chown slurm:slurm /etc/slurm/jwt_hs256.key \
 	&& chmod 600 /etc/slurm/jwt_hs256.key

@@ -14,11 +14,11 @@ services:
       - var_lib_mysql:/var/lib/mysql
 
   slurmdbd:
-    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.6.1}
     build:
       context: .
       args:
-        SLURM_TAG: ${SLURM_TAG:-slurm-23-02-5-1}
+        SLURM_TAG: ${SLURM_TAG:-slurm-23-02-6-1}
     command: ["slurmdbd"]
     container_name: slurmdbd
     hostname: slurmdbd
@@ -32,7 +32,7 @@ services:
       - mysql
 
   slurmctld:
-    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.6.1}
     command: ["slurmctld"]
     container_name: slurmctld
     hostname: slurmctld
@@ -55,10 +55,11 @@ services:
       - "slurmdbd"
 
   c1:
-    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.6.1}
     command: ["slurmd"]
     hostname: c1
     container_name: c1
+    privileged: true
     volumes:
       - etc_munge:/etc/munge
       - etc_slurm:/etc/slurm
@@ -71,7 +72,7 @@ services:
       - "slurmctld"
 
   c2:
-    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.6.1}
     command: ["slurmd"]
     hostname: c2
     container_name: c2
@@ -81,13 +82,14 @@ services:
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
       - work:/home/admin
+    privileged: true
     expose:
       - 6818
     depends_on:
       - "slurmctld"
 
   slurmjupyter:
-    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.5.1}
+    image: slurm-docker-cluster:${IMAGE_TAG:-23.02.6.1}
     command: ["jupyter"]
     hostname: slurmjupyter
     container_name: slurmjupyter

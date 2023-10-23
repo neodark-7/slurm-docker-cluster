@@ -125,3 +125,67 @@ X-SLURM-USER-TOKEN=[JWT TOKEN]
 sconsole token [username]
 SLURM_JWT=[JWT TOKEN]
 ```
+
+## Trouble shooting
+slurmd: debug:  CPUs has been set to match sockets per node instead of threads CPUs=1:16(hw)
+slurmd: error: Node configuration differs from hardware: CPUs=1:16(hw) Boards=1:1(hw) SocketsPerBoard=1:1(hw) CoresPerSocket=1:8(hw) ThreadsPerCore=1:2(hw)
+slurmd: error: Couldn't find the specified plugin name for cgroup/v2 looking at all files
+slurmd: error: cannot find cgroup plugin for cgroup/v2
+slurmd: error: cannot create cgroup context for cgroup/v2
+slurmd: error: Unable to initialize cgroup plugin
+slurmd: error: slurmd initialization failed
+
+
+- Node configuration differs from hardware: CPUs=1:16(hw) Boards=1:1(hw) SocketsPerBoard=1:1(hw) CoresPerSocket=1:8(hw) ThreadsPerCore=1:2(hw)
+```
+sudo dmidecode -t processor | grep -E '(Core Count|Thread Count)'
+	Core Count: 8
+	Thread Count: 16
+
+
+It looks like you have hyper-threading turned on, but haven’t defined the ThreadsPerCore=2. You either need to turn off Hyper-threading in the BIOS or changed the definition of ThreadsPerCore in slurm.conf.
+
+# Disable HT:
+echo 0 | sudo tee /sys/devices/system/cpu/cpu{9..15}/online
+
+
+
+echo 0 | sudo tee /sys/devices/system/cpu/cpu{1..15}/online
+=======>
+slurmd: error: Couldn't find the specified plugin name for cgroup/v2 looking at all files
+slurmd: error: cannot find cgroup plugin for cgroup/v2
+slurmd: error: cannot create cgroup context for cgroup/v2
+slurmd: error: Unable to initialize cgroup plugin
+slurmd: error: slurmd initialization failed
+
+```
+- Couldn't find the specified plugin name for cgroup/v2 looking at all files
+```
+dnf -y install dbus-devel
+
+```
+
+
+## ETC
+Compute pods
+*  systemd in a container /usr/lib/systemd/systemd --system
+*  share paths: /tmp /run /sys/fs/cgroup (ro)
+
+Volume
+* /etc/slurm/slurm.conf (configmap)
+empty dir
+* /var/run/munge
+ceph pvc
+* /etc/munge
+* /var/pool/slurmd
+* /scratch
+
+munge configuration
+*  init container
+*  folder permissions and ownership on /etc/munge /run/munge
+
+Pod == Node
+* Compute pod: slurmcn munge
+* Control pod: slurmctl
+* Accounting pod: slurmdb mariadb
+
